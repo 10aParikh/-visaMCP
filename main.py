@@ -6,6 +6,7 @@ Provides tools for Visa APIs: FX Rates, ATM Locator, Subscription Manager, Stop 
 import os
 import httpx
 from dedalus_mcp import MCPServer, tool
+from dedalus_mcp.server import TransportSecuritySettings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -271,28 +272,39 @@ def vsps_extend_stop(stop_id: str, new_end_date: str) -> str:
         return f"Error: {str(e)}"
 
 
-# Create the MCP server
-server = MCPServer("visa-mcp")
+def create_server() -> MCPServer:
+    """Create and configure the Visa MCP server."""
+    server = MCPServer(
+        name="visa-mcp",
+        http_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+        streamable_http_stateless=True,
+    )
+    
+    # Register all tools
+    server.collect(
+        # Core tools
+        hello_world,
+        get_exchange_rate,
+        find_nearby_atms,
+        # VSM tools
+        vsm_search,
+        vsm_merchant_details,
+        vsm_add_merchant,
+        vsm_cancel,
+        # VSPS tools
+        vsps_search_instructions,
+        vsps_search_eligible,
+        vsps_add_stop,
+        vsps_cancel_stop,
+        vsps_update_stop,
+        vsps_extend_stop,
+    )
+    
+    return server
 
-# Register all tools
-server.collect(
-    # Core tools
-    hello_world,
-    get_exchange_rate,
-    find_nearby_atms,
-    # VSM tools
-    vsm_search,
-    vsm_merchant_details,
-    vsm_add_merchant,
-    vsm_cancel,
-    # VSPS tools
-    vsps_search_instructions,
-    vsps_search_eligible,
-    vsps_add_stop,
-    vsps_cancel_stop,
-    vsps_update_stop,
-    vsps_extend_stop,
-)
+
+# Create server instance for Dedalus
+server = create_server()
 
 if __name__ == "__main__":
     import asyncio
